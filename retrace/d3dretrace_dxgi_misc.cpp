@@ -29,6 +29,7 @@
 #include "d3d11imports.hpp"
 #include "d3dretrace.hpp"
 
+#include <dxgi1_3.h>
 #include <wrl/client.h>
 
 
@@ -36,6 +37,49 @@ using Microsoft::WRL::ComPtr;
 
 
 namespace d3dretrace {
+
+
+/**
+ * Create a DXGI factory, enabling the DXGI debug layer when --debug is given.
+ */
+HRESULT
+createFactory(REFIID riid, void **ppFactory)
+{
+    HRESULT hr;
+    static HMODULE hDXGI = nullptr;
+    if (hDXGI == nullptr) {
+        hDXGI = GetModuleHandleA("dxgi.dll");
+        if (hDXGI == nullptr) {
+            hDXGI = LoadLibraryA("dxgi.dll");
+        }
+    }
+    assert(hDXGI != nullptr);
+    if (retrace::debug >= 2) {
+        typedef HRESULT (WINAPI *PFN_CREATEDXGIFACTORY2)(UINT, REFIID, void **);
+        static PFN_CREATEDXGIFACTORY2 pfnCreateDXGIFactory2 = nullptr;
+        if (!pfnCreateDXGIFactory2) {
+            pfnCreateDXGIFactory2 = (PFN_CREATEDXGIFACTORY2)GetProcAddress(hDXGI, "CreateDXGIFactory2");
+        }
+        if (pfnCreateDXGIFactory2) {
+            UINT Flags = 0;
+            if (retrace::debug >= 2) {
+                Flags |= DXGI_CREATE_FACTORY_DEBUG;
+            }
+            hr = pfnCreateDXGIFactory2(Flags, riid, ppFactory);
+            if (SUCCEEDED(hr)) {
+                return hr;
+            }
+        }
+    }
+    typedef HRESULT (WINAPI *PFN_CREATEDXGIFACTORY1)(REFIID, void **);
+    static PFN_CREATEDXGIFACTORY1 pfnCreateDXGIFactory1 = nullptr;
+    if (!pfnCreateDXGIFactory1) {
+        pfnCreateDXGIFactory1 = (PFN_CREATEDXGIFACTORY1)GetProcAddress(hDXGI, "CreateDXGIFactory1");
+    }
+    assert(pfnCreateDXGIFactory1);
+    hr = pfnCreateDXGIFactory1(riid, ppFactory);
+    return hr;
+}
 
 
 HRESULT
@@ -52,6 +96,7 @@ createAdapter(IDXGIFactory *pFactory, REFIID riid, void **ppvAdapter)
         GpuPreference = DXGI_GPU_PREFERENCE_MINIMUM_POWER;
         break;
     case retrace::DRIVER_DISCRETE:
+    case retrace::DRIVER_D3D11ON12:
         GpuPreference = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE;
         break;
     case retrace::DRIVER_REFERENCE:
@@ -87,7 +132,7 @@ createAdapter(IDXGIFactory *pFactory, REFIID riid, void **ppvAdapter)
             hr = DXGI_ERROR_NOT_FOUND;
         }
     } else {
-        hr = pFactory->EnumAdapters(0, reinterpret_cast<IDXGIAdapter **>(ppvAdapter));
+        hr = pFactory->EnumAdapters(0, &pAdapter);
     }
 
     if (SUCCEEDED(hr)) {

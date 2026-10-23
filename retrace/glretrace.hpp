@@ -157,6 +157,9 @@ createContext(Context *shareContext = 0);
 bool
 makeCurrent(trace::Call &call, glws::Drawable *drawable, Context *context);
 
+void
+releaseCurrentContext(void);
+
 bool
 makeCurrent(trace::Call &call, glws::Drawable *drawable,
             glws::Drawable *readable, Context *context);
@@ -164,6 +167,9 @@ makeCurrent(trace::Call &call, glws::Drawable *drawable,
 
 void
 checkGlError(trace::Call &call);
+
+bool
+retraceEGLImageUpload(trace::Call &call, Context *currentContext);
 
 void
 insertCallMarker(trace::Call &call, Context *currentContext);

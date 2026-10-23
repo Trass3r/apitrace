@@ -26,6 +26,7 @@ foreach (path IN ITEMS
     zlib/README
     zstd/LICENSE
     directxmath/LICENSE
+    detours/LICENSE.md
 )
     if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${path}")
         message (SEND_ERROR "error: ${CMAKE_CURRENT_SOURCE_DIR}/${path} does not exist")
@@ -105,8 +106,8 @@ if (WIN32)
     add_subdirectory (dxerr)
     add_subdirectory (directxtex)
     add_subdirectory (devcon)
-    if (HAVE_X86)
-        add_subdirectory (mhook)
+    if (HAVE_DETOURS)
+        include_with_scope (detours.cmake)
     endif ()
 endif ()
 

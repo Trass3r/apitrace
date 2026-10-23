@@ -147,6 +147,13 @@ class GlRetracer(Retracer):
             print(r'        glretrace::insertCallMarker(call, currentContext);')
             print(r'    }')
 
+        # The tracer follows glEGLImageTargetTexture2DOES with a fake
+        # glTexImage2D holding the image contents
+        if function.name == 'glTexImage2D':
+            print(r'    if (glretrace::retraceEGLImageUpload(call, currentContext)) {')
+            print(r'        return;')
+            print(r'    }')
+
         # For backwards compatibility with old traces where non VBO drawing was supported
         if (is_array_pointer or is_draw_arrays or is_draw_elements) and not is_draw_indirect:
             print('    if (retrace::parser->getVersion() < 1) {')
@@ -243,9 +250,13 @@ class GlRetracer(Retracer):
             print(r'     GLsizei _h = call.arg(3).toSInt();')
             print(r'     GLenum _format = call.arg(4).toSInt();')
             print(r'     GLenum _type = call.arg(5).toSInt();')
-            print(r'     unsigned _bits_per_pixel = _gl_format_size(_format, _type);')
-            print(r'     GLsizei _stride = (_w * _bits_per_pixel + 7) / 8;')
-            print(r'     buffer.resize(_h * _stride);')
+            print(r'     if (currentContext) {')
+            print(r'         buffer.resize(_glReadPixels_size(_format, _type, _w, _h));')
+            print(r'     } else {')
+            print(r'         unsigned _bits_per_pixel = _gl_format_size(_format, _type);')
+            print(r'         GLsizei _stride = (_w * _bits_per_pixel + 7) / 8;')
+            print(r'         buffer.resize(_h * _stride);')
+            print(r'     }')
         elif function.name == "glReadnPixels":
             print(r'     buffer.resize(call.arg(6).toSInt());')
             data_param_name = "data"
@@ -433,7 +444,7 @@ class GlRetracer(Retracer):
         elif function.name == 'glClientWaitSync':
             print(r'    _result = glretrace::clientWaitSync(call, sync, flags, timeout);')
             print(r'    (void)_result;')
-        elif function.name == 'glGetSynciv':
+        elif function.name in ('glGetSynciv', 'glGetSyncivAPPLE'):
             print(r'    if (pname == GL_SYNC_STATUS &&')
             print(r'        bufSize >= 1 &&')
             print(r'        values != NULL &&')
@@ -669,6 +680,14 @@ if __name__ == '__main__':
 #include "glretrace.hpp"
 #include "glstate.hpp"
 #include "glsize.hpp"
+
+
+static inline bool
+can_pack_subimage(void)
+{
+    glretrace::Context *currentContext = glretrace::getCurrentContext();
+    return currentContext && currentContext->features().pack_subimage;
+}
 
 
 static GLint

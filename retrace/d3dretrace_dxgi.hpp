@@ -30,6 +30,7 @@
 
 #include "retrace.hpp"
 #include "d3dretrace.hpp"
+#include "d3dretrace_dxgi_d3d11on12.hpp"
 
 
 /*
@@ -48,6 +49,9 @@ struct ID3D11DeviceChild;
 
 
 namespace d3dretrace {
+
+HRESULT
+createFactory(REFIID riid, void **ppFactory);
 
 HRESULT
 createAdapter(IDXGIFactory *pFactory, REFIID riid, void **ppvAdapter);

@@ -11,7 +11,7 @@ include_directories (
     ${CMAKE_SOURCE_DIR}/lib/image
     ${CMAKE_SOURCE_DIR}/lib/ubjson
     ${CMAKE_SOURCE_DIR}/thirdparty/dxerr
-    ${CMAKE_SOURCE_DIR}/thirdparty/mhook/mhook-lib
+    ${CMAKE_SOURCE_DIR}/thirdparty/detours/src
 )
 
 add_definitions (-DRETRACE)
@@ -65,8 +65,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif ()
 if (WIN32)
     target_link_libraries (retrace_common dxerr winmm psapi)
-    if (HAVE_X86)
-        target_link_libraries (retrace_common mhook)
+    if (HAVE_DETOURS)
+        target_link_libraries (retrace_common detours)
     endif ()
 endif ()
 add_dependencies (retrace_common version)
@@ -296,6 +296,7 @@ if (WIN32)
             d3d11state_images.cpp
             d3dretrace_dxgi.cpp
             d3dretrace_dxgi_misc.cpp
+            d3dretrace_dxgi_d3d11on12.cpp
         )
         add_custom_command (
             OUTPUT dxgistate_so.cpp
@@ -337,6 +338,7 @@ if (WIN32)
         d3dretrace_d3d9.cpp
         d3dretrace_dxgi_priv.cpp
         d3dretrace_ws.cpp
+        d3dretrace_d3d9on12.cpp
         d3d9state.cpp
         d3d9state_formats.cpp
         d3d9state_images.cpp

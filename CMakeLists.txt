@@ -148,6 +148,15 @@ endif ()
 # Check whether we're targeting Intel X86 architecture
 check_cxx_source_compiles ("#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_AMD64)\nint main() { return 0; }\n#else\n#error\n#endif" HAVE_X86)
 
+# Check whether we're targeting the Arm64 architecture
+check_cxx_source_compiles ("#if defined(__aarch64__) || defined(_M_ARM64)\nint main() { return 0; }\n#else\n#error\n#endif" HAVE_ARM64)
+
+# Microsoft Detours supports both x86/x64 and Arm64
+set (HAVE_DETOURS FALSE)
+if (WIN32 AND (HAVE_X86 OR HAVE_ARM64))
+    set (HAVE_DETOURS TRUE)
+endif ()
+
 # CMake fails to detect we're crosscompiling when using MSVC Arm cross compilation toolchain
 if (MSVC AND NOT HAVE_X86)
     set (CMAKE_CROSSCOMPILING TRUE)
@@ -307,6 +316,7 @@ else ()
     add_compiler_flags (-Wall)
     # XXX: it's safer to use ssize_t everywhere instead of disabling warning
     add_compiler_flags (-Wno-sign-compare) # comparison between signed and unsigned integer expressions
+    add_compiler_flags (-Wno-address) # the address of ‘struct::member’ will never be NULL
 
     # Disable strict aliasing assumptions.  We generate a lot of C++ code, and
     # it's not always easy to guarantee or spot when strict aliasing
@@ -409,6 +419,9 @@ if (MINGW)
         endif ()
     endif ()
 
+    # Avoid https://sourceforge.net/p/mingw-w64/bugs/892/
+    include_directories (${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/wrl)
+
 elseif (ENABLE_STATIC_EXE)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif ()
@@ -476,14 +489,18 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 if (BUILD_TESTING)
     enable_testing ()
 endif ()
+# Note that CMAKE_BUILD_TYPE cannot be used to tell the two apart: recent CMake
+# gives it a default value even for multiple configuration generators, which
+# would leave ctest without the `-C` it needs to find the test commands.
+get_property (GENERATOR_IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if (CMAKE_CROSSCOMPILING AND NOT CMAKE_CROSSCOMPILING_EMULATOR)
     add_custom_target (check)
-elseif (DEFINED CMAKE_BUILD_TYPE)
-    # Single configuration
-    add_custom_target (check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure USES_TERMINAL)
-else ()
+elseif (GENERATOR_IS_MULTI_CONFIG)
     # Multiple configuration
     add_custom_target (check COMMAND ${CMAKE_CTEST_COMMAND} -C "$<CONFIG>" --output-on-failure USES_TERMINAL)
+else ()
+    # Single configuration
+    add_custom_target (check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure USES_TERMINAL)
 endif ()
 
 

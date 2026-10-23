@@ -948,7 +948,7 @@ class GlTracer(Tracer):
             print(r'        GLMemoryShadow::syncAllForReads(_ctx);')
             print(r'    }')
 
-        if function.name == 'glGetSynciv':
+        if function.name in ('glGetSynciv', 'glGetSyncivAPPLE'):
             print(r'    if (pname == GL_SYNC_STATUS && bufSize > 0 && values[0] == GL_SIGNALED) {')
             print(r'        gltrace::Context *_ctx = gltrace::getContext();')
             print(r'        GLMemoryShadow::commitAllWrites(_ctx, trace::fakeMemcpy);')
@@ -1058,6 +1058,7 @@ class GlTracer(Tracer):
         'glEnableClientState',
         'glEndList',
         'glNewList',
+        'glPixelStorei',
         'glScissor',
         'glStringMarkerGREMEDY',
         'glTexImage2D',
@@ -1271,5 +1272,8 @@ class GlTracer(Tracer):
             print('    }')
 
     def emitFakeTexture2D(self):
-        print(r'    _fake_glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);')
+        print(r'    {')
+        print(r'        gltrace::FakeUnpackScope _unpack(gltrace::getContext());')
+        print(r'        _fake_glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);')
+        print(r'    }')
 
